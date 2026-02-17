@@ -22,9 +22,9 @@ with st.sidebar.expander("API Configuration", expanded=True):
     if st.button("Save Settings"):
         st.success("Settings available for current session.")
 
-# Function to call FastMCP tools
-def call_mcp_tool(tool_name, arguments):
-    """Calls a tool from the server module directly."""
+# Function to call Server Core Functions directly
+def call_tool_direct(tool_name, arguments):
+    """Calls a core function from the server module directly."""
     try:
         # Set environment variables for the server tools to use
         if st.session_state.get("openai_api_key"):
@@ -34,14 +34,17 @@ def call_mcp_tool(tool_name, arguments):
         if st.session_state.get("google_cx"):
             os.environ["GOOGLE_CX"] = st.session_state.get("google_cx")
 
-        # Import server here to avoid circular imports or issues if config not set
-        # We assume server.py is in the same directory
-        from server import mcp
+        # Import server core functions
+        from server import parse_file_core, check_plagiarism_core, grade_text_core, generate_feedback_core
         
-        tool = mcp.get_tool(tool_name)
-        if tool:
-            # Result might be a string or dict or other JSON-serializable
-            return tool.run(**arguments)
+        if tool_name == "parse_file":
+            return parse_file_core(**arguments)
+        elif tool_name == "check_plagiarism":
+            return check_plagiarism_core(**arguments)
+        elif tool_name == "grade_text":
+            return grade_text_core(**arguments)
+        elif tool_name == "generate_feedback":
+            return generate_feedback_core(**arguments)
         else:
             return f"Error: Tool '{tool_name}' not found."
 
@@ -83,7 +86,7 @@ with tab1:
         # Parse the document
         if st.button("Process Document"):
             with st.spinner("Processing document..."):
-                result = call_mcp_tool("parse_file", {"file_path": file_path})
+                result = call_tool_direct("parse_file", {"file_path": file_path})
 
                 if result is None:
                     st.error("Failed to process document. Check server connection.")
@@ -139,14 +142,14 @@ Grammar & Style (10%): The assignment should be free of grammatical errors and u
                         st.session_state['plagiarism_results'] = None
                     else:
                         st.info("Checking for plagiarism...")
-                        plagiarism_results = call_mcp_tool("check_plagiarism", {"text": st.session_state['document_text']})
+                        plagiarism_results = call_tool_direct("check_plagiarism", {"text": st.session_state['document_text']})
                         st.session_state['plagiarism_results'] = plagiarism_results
                         if plagiarism_results is None:
                             st.warning("Plagiarism check failed or returned no results.")
 
                 # Generate grade
                 st.info("Generating grade...")
-                grade_results = call_mcp_tool("grade_text", {
+                grade_results = call_tool_direct("grade_text", {
                     "text": st.session_state['document_text'],
                     "rubric": rubric
                 })        
@@ -160,7 +163,7 @@ Grammar & Style (10%): The assignment should be free of grammatical errors and u
 
                 # Generate feedback
                 st.info("Generating feedback...")
-                feedback = call_mcp_tool("generate_feedback", {
+                feedback = call_tool_direct("generate_feedback", {
                     "text": st.session_state['document_text'],
                     "rubric": rubric
                 })    

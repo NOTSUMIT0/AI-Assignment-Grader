@@ -17,8 +17,9 @@ def get_openai_client():
         return None
     return OpenAI(api_key=api_key)
 
-@mcp.tool()
-def parse_file(file_path: str) -> str:
+# Core Logic Functions
+
+def parse_file_core(file_path: str) -> str:
     """Parses a PDF or DOCX file and extracts text."""
     try:
         if file_path.endswith(".pdf"):
@@ -36,8 +37,7 @@ def parse_file(file_path: str) -> str:
     except Exception as e:
         return f"Error parsing file: {str(e)}"
 
-@mcp.tool()
-def check_plagiarism(text: str) -> dict:
+def check_plagiarism_core(text: str) -> dict:
     """Checks for plagiarism using Google Search API and returns similarity scores."""
     try:
         # Use Google Custom Search API to find similar content
@@ -77,8 +77,7 @@ def check_plagiarism(text: str) -> dict:
     except Exception as e:
         return {"error": f"Plagiarism check failed: {str(e)}"}
 
-@mcp.tool()
-def grade_text(text: str, rubric: str) -> dict:
+def grade_text_core(text: str, rubric: str) -> dict:
     """Grades the text based on the provided rubric using OpenAI."""
     try:
         client = get_openai_client()
@@ -119,10 +118,12 @@ def grade_text(text: str, rubric: str) -> dict:
         return result
         
     except Exception as e:
+        # Check if the error is related to quota
+        if "quota" in str(e).lower():
+             return {"error": "OpenAI API quota exceeded. Please check your billing details."}
         return {"error": f"Grading failed: {str(e)}"}
 
-@mcp.tool()
-def generate_feedback(text: str, rubric: str) -> str:
+def generate_feedback_core(text: str, rubric: str) -> str:
     """Generates detailed feedback for the assignment using OpenAI."""
     try:
         client = get_openai_client()
@@ -152,4 +153,28 @@ def generate_feedback(text: str, rubric: str) -> str:
         return response.choices[0].message.content
         
     except Exception as e:
+        if "quota" in str(e).lower():
+             return "Error: OpenAI API quota exceeded. Please check your billing details."
         return f"Feedback generation failed: {str(e)}"
+
+# MCP Tools Wrappers
+
+@mcp.tool()
+def parse_file(file_path: str) -> str:
+    """Parses a PDF or DOCX file and extracts text."""
+    return parse_file_core(file_path)
+
+@mcp.tool()
+def check_plagiarism(text: str) -> dict:
+    """Checks for plagiarism using Google Search API and returns similarity scores."""
+    return check_plagiarism_core(text)
+
+@mcp.tool()
+def grade_text(text: str, rubric: str) -> dict:
+    """Grades the text based on the provided rubric using OpenAI."""
+    return grade_text_core(text, rubric)
+
+@mcp.tool()
+def generate_feedback(text: str, rubric: str) -> str:
+    """Generates detailed feedback for the assignment using OpenAI."""
+    return generate_feedback_core(text, rubric)
